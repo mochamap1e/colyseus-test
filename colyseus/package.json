@@ -1,19 +1,19 @@
 {
-  "name": "colyseus",
+  "name": "coly",
+  "version": "1.0.0",
   "type": "module",
   "private": true,
   "scripts": {
-    "start": "bun run src/index.ts",
     "dev": "bun run --watch src/index.ts"
   },
   "dependencies": {
-    "@colyseus/bun-websockets": "^0.16.5",
-    "colyseus": "^0.16.5"
+    "@colyseus/core": "^0.16.24",
+    "@colyseus/loadtest": "^0.16.1",
+    "@colyseus/schema": "^3.0.70",
+    "@colyseus/tools": "^0.16.0",
+    "colyseus": "^0.16.0"
   },
   "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
+    "typescript": "^5.0.4"
   }
 }

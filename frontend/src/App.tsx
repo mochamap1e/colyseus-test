@@ -1,11 +1,17 @@
 import Phaser from "phaser";
-import { useEffect } from "react"; 
+import { useEffect } from "react";
+import { Client, Room, getStateCallbacks } from "colyseus.js";
 
 import "./styles.css";
 
 class Game extends Phaser.Scene {
   player!: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
-  cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+  cursor!: Phaser.Types.Input.Keyboard.CursorKeys;
+
+  otherPlayerSprites: {[sessionId: string]: any} = {};
+
+  client = new Client("ws://localhost:2567");
+  room!: Room;
 
   constructor() {
     super({ key: "Game" });
@@ -16,40 +22,70 @@ class Game extends Phaser.Scene {
     this.load.image("player", "/player.png");
   }
 
-  create() {
-    this.add.image(0, 0, "sky");
+  async create() {
+    try {
+      this.room = await this.client.joinOrCreate("room");
+    } catch(error) {
+      return;
+    }
 
-    this.player = this.physics.add.sprite(250, 250, "player");
-    this.player.setCollideWorldBounds(true);
+    const $ = getStateCallbacks(this.room);
 
-    this.cursors = this.input.keyboard!.createCursorKeys();
+    $(this.room.state).players.onAdd((player, sessionId) => {
+      const sprite = this.physics.add.image(player.x, player.y, "player");
+
+      this.otherPlayerSprites[sessionId] = sprite;
+
+      $(player).onChange(() => {
+        sprite.setData("currentX", player.x);
+        sprite.setData("currentY", player.y);
+      });
+    });
+
+    $(this.room.state).players.onRemove((_, sessionId) => {
+      const sprite = this.otherPlayerSprites[sessionId];
+
+      if (sprite) {
+        sprite.destroy(); delete this.otherPlayerSprites[sessionId];
+      }
+    });
+
+    this.cursor = this.input.keyboard!.createCursorKeys();
   }
 
   update() {
-    const speed = 100;
+    if (!this.room || !this.player) { return; }
 
-    if (this.cursors.left.isDown) {
-      this.player.setVelocityX(-speed);
-    } else {
-      this.player.setVelocityX(0);
+    const inputMap = {
+      left: this.cursor.left.isDown,
+      right: this.cursor.right.isDown,
+      up: this.cursor.up.isDown,
+      down: this.cursor.down.isDown
     }
 
-    if (this.cursors.right.isDown) {
-      this.player.setVelocityX(speed);
-    } else {
-      this.player.setVelocityX(0);
-    }
+    // locally apply input to sprite
 
-    if (this.cursors.up.isDown) {
-      this.player.setVelocityY(-speed);
-    } else {
-      this.player.setVelocityY(0);
-    }
+    const speed = 1;
 
-    if (this.cursors.down.isDown) {
-      this.player.setVelocityY(speed);
-    } else {
-      this.player.setVelocityY(0);
+    if (inputMap.left) this.player.x -= speed;
+    if (inputMap.right) this.player.x += speed;
+    if (inputMap.up) this.player.y -= speed;
+    if (inputMap.down) this.player.y += speed;
+
+    // send current input to server
+    this.room.send("INPUT", inputMap);
+
+    // lerp other player sprites
+    for (let sessionId in this.otherPlayerSprites) {
+      if (sessionId === this.room.sessionId) continue;
+
+      const lerpAlpha = 0.2;
+
+      const sprite = this.otherPlayerSprites[sessionId];
+      const { currentX, currentY } = sprite.data.values;
+
+      sprite.x = Phaser.Math.Linear(sprite.x, currentX, lerpAlpha);
+      sprite.y = Phaser.Math.Linear(sprite.y, currentY, lerpAlpha);
     }
   }
 }

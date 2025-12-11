@@ -1,12 +1,15 @@
 {
   "name": "colyseus-test",
-  "type": "module",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
   "private": true,
-  "workspaces": ["colyseus", "frontend"],
   "scripts": {
     "dev": "concurrently \"cd colyseus && bun run dev \" \"cd frontend && bun run dev\""
   },
-  "devDependencies": {
-    "concurrently": "^9.2.1"
+  "type": "module",
+  "workspaces": ["colyseus", "frontend"],
+  "dependencies": {
+    "phaser": "^3.90.0"
   }
 }
